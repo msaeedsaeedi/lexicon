@@ -1,0 +1,55 @@
+# Vocab consumer contract — Lexicon v0.1
+
+The Vocab desktop application consumes a published lexicon bundle as read-only language knowledge.
+The bundle is independent from the desktop binary and may be updated through a controlled update
+flow after verification.
+
+## Compatibility and verification
+
+Vocab v0.1 consumers support:
+
+```text
+schema_version:  0.1.0
+dataset_version: 0.1.x
+```
+
+Before importing or replacing a bundle, verify `release-manifest.json` and `manifest.json`
+checksums, then require an exact supported schema version. A consumer must reject a bundle with an
+unknown schema version; a future schema migration will define its own compatibility path.
+
+The release bundle contains:
+
+```text
+lexicon-en-core-<version>.sqlite  # preferred runtime artifact
+lexicon-en-core-<version>.jsonl   # inspection and interchange artifact
+manifest.json                     # canonical-artifact checksums and source metadata
+release-manifest.json             # checksum index for every bundled file
+ATTRIBUTION.md
+duplicate-report.json
+vocab-compat-<version>.json       # temporary compatibility projection
+```
+
+## Preferred SQLite integration
+
+Open the SQLite artifact read-only and enable foreign keys and query-only mode. Treat it as a
+replaceable dataset file, not as application state. The primary tables are `lexemes`, `forms`,
+`senses`, `definitions`, `examples`, `sources`, and `languages`.
+
+Vocab should query a lexeme through its senses and select an appropriate definition/example in the
+application layer. It must retain the lexeme’s `source_id` when displaying or auditing content.
+
+The JSONL artifact represents the same canonical records and is suitable for diagnostics or a
+future importer, but SQLite is the v0.1 runtime contract.
+
+## Vocab boundary
+
+The lexicon bundle must never store or accept:
+
+- learner mastery, review history, or FSRS/BKT state;
+- next-review timestamps, notification settings, or activity data;
+- desktop configuration, local paths, or user identifiers.
+
+Those belong in Vocab-owned learner, scheduler, interaction, and settings storage. The legacy
+`vocab-compat-*.json` file is an array of `{word, definition, example}` entries only; it discards
+lexeme/sense structure and provenance detail, so it is a migration aid rather than a canonical
+runtime model.

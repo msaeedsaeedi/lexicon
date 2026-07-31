@@ -67,9 +67,7 @@ def apply_overrides(dataset: Dataset, overrides: Overrides) -> Dataset:
         raise OverrideError(f"definition fix IDs do not exist: {sorted(unknown_fixes)}")
 
     lexemes = tuple(
-        _apply_lexeme_fixes(lexeme, fixes)
-        for lexeme in dataset.lexemes
-        if lexeme.id not in blocked
+        _apply_lexeme_fixes(lexeme, fixes) for lexeme in dataset.lexemes if lexeme.id not in blocked
     )
     return dataset.model_copy(update={"lexemes": lexemes})
 

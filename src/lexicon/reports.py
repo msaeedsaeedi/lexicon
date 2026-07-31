@@ -19,4 +19,6 @@ def write_duplicate_report(result: NormalizationResult, target: Path) -> None:
         ],
         "conflicting_duplicates": "build failure",
     }
-    write_text_atomic(target, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(
+        target, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    )

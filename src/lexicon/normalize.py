@@ -93,7 +93,9 @@ def normalize_lexeme(record: StagedLexeme) -> Lexeme:
         raise NormalizationError(f"unsupported language: {record.language}")
     normalized_lemma = normalized_key(record.lemma)
     lemma = normalized_lemma
-    pos = POS_ALIASES.get(normalized_key(record.part_of_speech), normalized_key(record.part_of_speech))
+    pos = POS_ALIASES.get(
+        normalized_key(record.part_of_speech), normalized_key(record.part_of_speech)
+    )
     allowed_pos = {"noun", "verb", "adjective", "adverb"}
     if pos not in allowed_pos:
         raise NormalizationError(f"unsupported part of speech: {record.part_of_speech}")

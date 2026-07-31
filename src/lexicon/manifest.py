@@ -13,7 +13,9 @@ def write_manifest(dataset: Dataset, artifacts: dict[str, Path], target: Path) -
         "lexemes": len(dataset.lexemes),
         "forms": sum(len(item.forms) for item in dataset.lexemes),
         "senses": sum(len(item.senses) for item in dataset.lexemes),
-        "definitions": sum(len(sense.definitions) for item in dataset.lexemes for sense in item.senses),
+        "definitions": sum(
+            len(sense.definitions) for item in dataset.lexemes for sense in item.senses
+        ),
         "examples": sum(len(sense.examples) for item in dataset.lexemes for sense in item.senses),
     }
     payload = {
@@ -31,11 +33,22 @@ def write_manifest(dataset: Dataset, artifacts: dict[str, Path], target: Path) -
         "compatibility": {"legacy_word_definition_example_export": True},
         "build": {"network_accessed": False, "deterministic": True},
     }
-    write_text_atomic(target, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(
+        target, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    )
 
 
 def write_attribution(dataset: Dataset, target: Path) -> None:
     lines = ["# Attribution", "", "This dataset contains curated seed material.", ""]
     for source in dataset.sources:
-        lines.extend([f"## {source.name} {source.version}", "", f"- Source: {source.source_url}", f"- License: {source.license}", f"- Retrieved: {source.retrieved_at}", ""])
+        lines.extend(
+            [
+                f"## {source.name} {source.version}",
+                "",
+                f"- Source: {source.source_url}",
+                f"- License: {source.license}",
+                f"- Retrieved: {source.retrieved_at}",
+                "",
+            ]
+        )
     write_text_atomic(target, "\n".join(lines))

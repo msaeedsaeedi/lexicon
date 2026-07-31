@@ -14,6 +14,14 @@ def export_legacy(input_path: Path, output_path: Path) -> int:
             continue
         lexeme = Lexeme.model_validate_json(line)
         first_sense = lexeme.senses[0]
-        entries.append({"word": lexeme.lemma, "definition": first_sense.definitions[0].text, "example": first_sense.examples[0].text})
-    write_text_atomic(output_path, json.dumps(entries, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+        entries.append(
+            {
+                "word": lexeme.lemma,
+                "definition": first_sense.definitions[0].text,
+                "example": first_sense.examples[0].text,
+            }
+        )
+    write_text_atomic(
+        output_path, json.dumps(entries, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    )
     return len(entries)

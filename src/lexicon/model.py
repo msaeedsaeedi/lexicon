@@ -20,7 +20,9 @@ class Source(StrictModel):
 
 class StagedDefinition(StrictModel):
     text: str = Field(min_length=1)
-    definition_type: Literal["canonical", "learner", "simple", "child", "technical", "generated"] = "learner"
+    definition_type: Literal[
+        "canonical", "learner", "simple", "child", "technical", "generated"
+    ] = "learner"
     audience: str = "general"
 
 

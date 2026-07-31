@@ -94,7 +94,9 @@ def write_jsonl(dataset: Dataset, target: Path) -> None:
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
             for lexeme in dataset.lexemes:
-                handle.write(json.dumps(lexeme.model_dump(mode="json"), ensure_ascii=False, sort_keys=True))
+                handle.write(
+                    json.dumps(lexeme.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
+                )
                 handle.write("\n")
         temporary.replace(target)
     except BaseException:
@@ -119,28 +121,68 @@ def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> No
             connection.executemany(
                 "INSERT INTO sources VALUES (?, ?, ?, ?, ?, ?)",
                 [
-                    (source.id, source.name, source.version, source.source_url, source.license, source.retrieved_at)
+                    (
+                        source.id,
+                        source.name,
+                        source.version,
+                        source.source_url,
+                        source.license,
+                        source.retrieved_at,
+                    )
                     for source in dataset.sources
                 ],
             )
             for lexeme in dataset.lexemes:
                 connection.execute(
                     "INSERT INTO lexemes VALUES (?, ?, ?, ?, ?, ?)",
-                    (lexeme.id, lexeme.language_id, lexeme.lemma, lexeme.normalized_lemma, lexeme.part_of_speech, lexeme.source_id),
+                    (
+                        lexeme.id,
+                        lexeme.language_id,
+                        lexeme.lemma,
+                        lexeme.normalized_lemma,
+                        lexeme.part_of_speech,
+                        lexeme.source_id,
+                    ),
                 )
                 connection.executemany(
                     "INSERT INTO forms VALUES (?, ?, ?, ?, ?, ?)",
-                    [(form.id, form.lexeme_id, form.text, form.normalized_text, form.form_type, int(form.is_canonical)) for form in lexeme.forms],
+                    [
+                        (
+                            form.id,
+                            form.lexeme_id,
+                            form.text,
+                            form.normalized_text,
+                            form.form_type,
+                            int(form.is_canonical),
+                        )
+                        for form in lexeme.forms
+                    ],
                 )
                 for sense in lexeme.senses:
-                    connection.execute("INSERT INTO senses VALUES (?, ?, ?, ?)", (sense.id, sense.lexeme_id, sense.sense_key, sense.gloss))
+                    connection.execute(
+                        "INSERT INTO senses VALUES (?, ?, ?, ?)",
+                        (sense.id, sense.lexeme_id, sense.sense_key, sense.gloss),
+                    )
                     connection.executemany(
                         "INSERT INTO definitions VALUES (?, ?, ?, ?, ?, ?)",
-                        [(item.id, item.sense_id, item.text, item.definition_type, item.audience, item.source_id) for item in sense.definitions],
+                        [
+                            (
+                                item.id,
+                                item.sense_id,
+                                item.text,
+                                item.definition_type,
+                                item.audience,
+                                item.source_id,
+                            )
+                            for item in sense.definitions
+                        ],
                     )
                     connection.executemany(
                         "INSERT INTO examples VALUES (?, ?, ?, ?)",
-                        [(item.id, item.sense_id, item.text, item.source_id) for item in sense.examples],
+                        [
+                            (item.id, item.sense_id, item.text, item.source_id)
+                            for item in sense.examples
+                        ],
                     )
             connection.commit()
             connection.execute("VACUUM")
