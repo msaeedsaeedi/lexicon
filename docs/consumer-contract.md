@@ -1,4 +1,4 @@
-# Vocab consumer contract — Lexicon v0.2
+# Vocab consumer contract — Lexicon v0.3
 
 The Vocab desktop application consumes a published lexicon bundle as read-only language knowledge.
 The bundle is independent from the desktop binary and may be updated through a controlled update
@@ -10,7 +10,7 @@ Vocab v0.2 consumers support:
 
 ```text
 schema_version:  0.2.0
-dataset_version: 0.2.x
+dataset_version: 0.3.x
 ```
 
 Before importing or replacing a bundle, verify `release-manifest.json` and `manifest.json`
@@ -26,6 +26,7 @@ manifest.json                     # canonical-artifact checksums and source meta
 release-manifest.json             # checksum index for every bundled file
 ATTRIBUTION.md
 duplicate-report.json
+health-report.json
 import-report.json
 vocab-compat-<version>.json       # temporary compatibility projection
 ```
@@ -55,3 +56,8 @@ Those belong in Vocab-owned learner, scheduler, interaction, and settings storag
 `vocab-compat-*.json` file is an array of `{word, definition, example}` entries only; it discards
 lexeme/sense structure and provenance detail, so it is a migration aid rather than a canonical
 runtime model.
+
+`health-report.json` is a release-audit artifact, not a runtime dependency. It records source
+identity, separate record counts, part-of-speech coverage, example/gloss coverage, provenance
+gaps, and normalized-input duplicate counts. The v0.3 release process requires it to match the
+committed OEWN baseline exactly.

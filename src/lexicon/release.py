@@ -5,7 +5,8 @@ from pathlib import Path
 
 from .compile import sha256, write_text_atomic
 from .errors import PipelineError
-from .validate import validate_artifact
+from .health import check_baseline
+from .validate import validate_artifact_pair
 from .version import DATASET_NAME, DATASET_VERSION, PIPELINE_VERSION, SCHEMA_VERSION
 
 
@@ -30,7 +31,12 @@ def write_release_manifest(directory: Path) -> Path:
     return target
 
 
-def verify_release(directory: Path, *, require_release_manifest: bool = True) -> dict[str, int]:
+def verify_release(
+    directory: Path,
+    *,
+    require_release_manifest: bool = True,
+    baseline_path: Path | None = None,
+) -> dict[str, int]:
     manifest = _read_json(directory / "manifest.json", "dataset manifest")
     _require_versions(manifest, "dataset manifest")
     artifacts = manifest.get("artifacts")
@@ -50,16 +56,20 @@ def verify_release(directory: Path, *, require_release_manifest: bool = True) ->
             raise ReleaseVerificationError(f"dataset artifact checksum mismatch: {filename}")
 
     stem = f"{DATASET_NAME}-{DATASET_VERSION}"
-    jsonl_counts = validate_artifact(directory / f"{stem}.jsonl")
-    sqlite_counts = validate_artifact(directory / f"{stem}.sqlite")
-    if jsonl_counts != sqlite_counts:
-        raise ReleaseVerificationError("SQLite and JSONL artifact record counts differ")
+    sqlite_counts = validate_artifact_pair(
+        directory / f"{stem}.jsonl", directory / f"{stem}.sqlite"
+    )
     if manifest.get("record_counts") != sqlite_counts:
         raise ReleaseVerificationError("dataset manifest record counts do not match artifacts")
 
     attribution = directory / "ATTRIBUTION.md"
     if not attribution.is_file() or not attribution.read_text(encoding="utf-8").strip():
         raise ReleaseVerificationError("release bundle is missing attribution")
+    health_report = directory / "health-report.json"
+    if not health_report.is_file():
+        raise ReleaseVerificationError("release bundle is missing dataset health report")
+    if baseline_path is not None:
+        check_baseline(_read_json(health_report, "dataset health report"), baseline_path)
     _validate_legacy_export(directory / f"vocab-compat-{DATASET_VERSION}.json")
 
     release_manifest = directory / "release-manifest.json"

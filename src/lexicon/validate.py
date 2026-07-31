@@ -143,3 +143,18 @@ def validate_artifact(path: Path) -> dict[str, int]:
     if path.suffix == ".jsonl":
         return validate_jsonl(path)
     raise ArtifactValidationError("artifact must have a .sqlite or .jsonl extension")
+
+
+def validate_artifact_pair(jsonl_path: Path, sqlite_path: Path) -> dict[str, int]:
+    jsonl_counts = validate_jsonl(jsonl_path)
+    sqlite_counts = validate_sqlite(sqlite_path)
+    if jsonl_counts != sqlite_counts:
+        raise ArtifactValidationError("SQLite and JSONL artifact record counts differ")
+    return sqlite_counts
+
+
+def validate_build_directory(directory: Path) -> dict[str, int]:
+    from .version import DATASET_NAME, DATASET_VERSION
+
+    stem = f"{DATASET_NAME}-{DATASET_VERSION}"
+    return validate_artifact_pair(directory / f"{stem}.jsonl", directory / f"{stem}.sqlite")

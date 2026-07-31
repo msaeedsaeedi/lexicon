@@ -47,6 +47,8 @@ def main() -> int:
             str(staging),
             "--import-report",
             str(staging / "import-report.json"),
+            "--baseline",
+            str(ROOT / "data/quality/oewn-2025.baseline.json"),
             "--output",
             str(temporary),
         )
@@ -61,7 +63,16 @@ def main() -> int:
             str(temporary / f"vocab-compat-{DATASET_VERSION}.json"),
         )
         _run("uv", "run", "lexicon", "finalize-release", "--directory", str(temporary))
-        _run("uv", "run", "lexicon", "verify-release", "--directory", str(temporary))
+        _run(
+            "uv",
+            "run",
+            "lexicon",
+            "verify-release",
+            "--directory",
+            str(temporary),
+            "--baseline",
+            str(ROOT / "data/quality/oewn-2025.baseline.json"),
+        )
         temporary.replace(output)
     except BaseException:
         shutil.rmtree(temporary, ignore_errors=True)

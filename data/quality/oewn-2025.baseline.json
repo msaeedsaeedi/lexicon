@@ -1,0 +1,39 @@
+{
+  "coverage": {
+    "lexemes_without_canonical_form": 0,
+    "senses_missing_required_source_sense_key": 0,
+    "senses_with_examples": 61327,
+    "senses_without_definitions": 0,
+    "senses_without_examples": 123754,
+    "senses_without_gloss": 185081
+  },
+  "duplicates": {
+    "exact_duplicate_input_records": 0,
+    "input_records": 135592
+  },
+  "missing_source_provenance": {
+    "definitions": 0,
+    "examples": 0,
+    "lexemes": 0
+  },
+  "part_of_speech": {
+    "adjective": 21885,
+    "adverb": 4485,
+    "noun": 97618,
+    "verb": 11604
+  },
+  "record_counts": {
+    "definitions": 185081,
+    "examples": 104085,
+    "forms": 135592,
+    "lexemes": 135592,
+    "senses": 185081
+  },
+  "source": [
+    {
+      "checksum": "38b16326159f51853626b7d24a44c453fa88ab33f06fce5ec8fc5996d1c2be93",
+      "id": "oewn-2025",
+      "version": "2025"
+    }
+  ]
+}

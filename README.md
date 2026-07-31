@@ -3,7 +3,7 @@
 `lexicon` builds deterministic, versioned lexical dataset artifacts for Vocab. It contains
 language knowledge only: it does not contain learner progress, scheduling, or application state.
 
-v0.2.0 imports the OEWN 2025 common edition through a checksum-locked acquisition step. The
+v0.3.0 imports the OEWN 2025 common edition through a checksum-locked acquisition step. The
 published dataset is OEWN-only; the curated seed remains a small pipeline fixture.
 
 ## Quick start
@@ -13,7 +13,7 @@ uv sync
 uv run lexicon acquire-oewn --cache .cache/raw
 uv run lexicon import-oewn --input .cache/raw/english-wordnet-2025.zip --output staging/oewn-2025
 uv run lexicon build --input staging/oewn-2025 --import-report staging/oewn-2025/import-report.json --output artifacts
-uv run lexicon validate artifacts/lexicon-en-oewn-0.2.0.sqlite
+uv run lexicon validate artifacts
 ```
 
 The OEWN archive URL and SHA-256 are committed in `data/sources/oewn-2025.lock.json`; raw archives
@@ -35,7 +35,8 @@ uv run python scripts/release.py
 ```
 
 This checks formatting, linting, types, and tests; builds a fresh bundle under
-`dist/lexicon-en-oewn-0.2.0`; creates the legacy compatibility export; and verifies all artifact
-and release-manifest checksums. The command fails rather than overwriting an existing release.
+`dist/lexicon-en-oewn-0.3.0`; checks its health against the committed OEWN baseline; creates the
+legacy compatibility export; and verifies all artifact and release-manifest checksums. The command
+fails rather than overwriting an existing release.
 
 See [the Vocab consumer contract](docs/consumer-contract.md) for the runtime boundary.

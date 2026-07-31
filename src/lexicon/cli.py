@@ -7,6 +7,7 @@ import typer
 
 from .compile import write_jsonl, write_sqlite
 from .export import export_legacy
+from .health import check_baseline, dataset_health, write_health_report
 from .manifest import write_attribution, write_manifest
 from .normalize import normalize_dataset_with_report
 from .oewn import acquire as acquire_oewn_archive
@@ -15,7 +16,7 @@ from .overrides import apply_overrides, load_overrides
 from .release import verify_release, write_release_manifest
 from .reports import write_duplicate_report
 from .staging import load_staging
-from .validate import validate_artifact, validate_dataset
+from .validate import validate_artifact, validate_build_directory, validate_dataset
 from .version import DATASET_NAME, DATASET_VERSION, PIPELINE_VERSION, SCHEMA_VERSION
 
 app = typer.Typer(no_args_is_help=True, help="Deterministic lexical dataset pipeline.")
@@ -27,6 +28,7 @@ def build(
     output_dir: Path = typer.Option(..., "--output", file_okay=False),
     overrides_dir: Path | None = typer.Option(None, "--overrides", file_okay=False),
     import_report_path: Path | None = typer.Option(None, "--import-report", exists=True),
+    baseline_path: Path | None = typer.Option(None, "--baseline", exists=True, dir_okay=False),
 ) -> None:
     """Compile curated staging data into canonical dataset artifacts."""
     try:
@@ -36,6 +38,11 @@ def build(
             normalized.dataset, load_overrides(overrides_dir or input_dir.parent / "overrides")
         )
         validate_dataset(dataset)
+        health_report_path = output_dir / "health-report.json"
+        health_report = dataset_health(dataset, normalized)
+        write_health_report(health_report, health_report_path)
+        if baseline_path is not None:
+            check_baseline(health_report, baseline_path)
         stem = f"{DATASET_NAME}-{DATASET_VERSION}"
         jsonl_path = output_dir / f"{stem}.jsonl"
         sqlite_path = output_dir / f"{stem}.sqlite"
@@ -54,6 +61,7 @@ def build(
         write_duplicate_report(normalized, duplicate_report_path)
         artifacts = {
             "duplicate_report": duplicate_report_path,
+            "health_report": health_report_path,
             "jsonl": jsonl_path,
             "sqlite": sqlite_path,
         }
@@ -120,10 +128,10 @@ def import_oewn(
 
 
 @app.command()
-def validate(path: Path = typer.Argument(..., exists=True, dir_okay=False)) -> None:
-    """Validate a generated SQLite or JSONL artifact."""
+def validate(path: Path = typer.Argument(..., exists=True)) -> None:
+    """Validate one artifact or confirm JSONL/SQLite agreement in a build directory."""
     try:
-        counts = validate_artifact(path)
+        counts = validate_build_directory(path) if path.is_dir() else validate_artifact(path)
     except Exception as error:
         from .errors import PipelineError
 
@@ -174,10 +182,11 @@ def finalize_release(
 @app.command("verify-release")
 def verify_release_command(
     directory: Path = typer.Option(..., "--directory", exists=True, file_okay=False),
+    baseline_path: Path | None = typer.Option(None, "--baseline", exists=True, dir_okay=False),
 ) -> None:
     """Verify a complete, finalized dataset release bundle."""
     try:
-        counts = verify_release(directory)
+        counts = verify_release(directory, baseline_path=baseline_path)
     except Exception as error:
         _exit_with_pipeline_error(error)
         raise
