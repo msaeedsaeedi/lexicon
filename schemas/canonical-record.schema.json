@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Lexicon canonical lexeme record v0.1.0",
+  "title": "Lexicon canonical lexeme record v0.2.0",
   "type": "object",
   "required": ["id", "language_id", "lemma", "normalized_lemma", "part_of_speech", "source_id", "forms", "senses"],
   "additionalProperties": false,
@@ -11,7 +11,69 @@
     "normalized_lemma": {"type": "string", "minLength": 1},
     "part_of_speech": {"enum": ["noun", "verb", "adjective", "adverb"]},
     "source_id": {"type": "string"},
-    "forms": {"type": "array", "minItems": 1},
-    "senses": {"type": "array", "minItems": 1}
+    "forms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "lexeme_id", "text", "normalized_text", "form_type", "is_canonical"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "lexeme_id": {"type": "string"},
+          "text": {"type": "string"},
+          "normalized_text": {"type": "string"},
+          "form_type": {"type": "string"},
+          "is_canonical": {"type": "boolean"}
+        }
+      }
+    },
+    "senses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "lexeme_id", "sense_key", "definitions"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "lexeme_id": {"type": "string"},
+          "sense_key": {"type": "string"},
+          "source_sense_key": {"type": ["string", "null"]},
+          "gloss": {"type": ["string", "null"]},
+          "definitions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "sense_id", "text", "definition_type", "audience", "source_id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {"type": "string"},
+                "sense_id": {"type": "string"},
+                "text": {"type": "string", "minLength": 1},
+                "definition_type": {"type": "string"},
+                "audience": {"type": "string"},
+                "source_id": {"type": "string"}
+              }
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "sense_id", "text", "source_id"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {"type": "string"},
+                "sense_id": {"type": "string"},
+                "text": {"type": "string", "minLength": 1},
+                "source_id": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

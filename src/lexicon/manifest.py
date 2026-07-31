@@ -8,7 +8,12 @@ from .model import Dataset
 from .version import DATASET_NAME, DATASET_VERSION, PIPELINE_VERSION, SCHEMA_VERSION
 
 
-def write_manifest(dataset: Dataset, artifacts: dict[str, Path], target: Path) -> None:
+def write_manifest(
+    dataset: Dataset,
+    artifacts: dict[str, Path],
+    target: Path,
+    import_report: dict[str, object] | None = None,
+) -> None:
     counts = {
         "lexemes": len(dataset.lexemes),
         "forms": sum(len(item.forms) for item in dataset.lexemes),
@@ -33,13 +38,15 @@ def write_manifest(dataset: Dataset, artifacts: dict[str, Path], target: Path) -
         "compatibility": {"legacy_word_definition_example_export": True},
         "build": {"network_accessed": False, "deterministic": True},
     }
+    if import_report is not None:
+        payload["import_report"] = import_report
     write_text_atomic(
         target, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     )
 
 
 def write_attribution(dataset: Dataset, target: Path) -> None:
-    lines = ["# Attribution", "", "This dataset contains curated seed material.", ""]
+    lines = ["# Attribution", "", "This dataset contains source material listed below.", ""]
     for source in dataset.sources:
         lines.extend(
             [

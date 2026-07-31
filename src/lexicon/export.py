@@ -18,7 +18,7 @@ def export_legacy(input_path: Path, output_path: Path) -> int:
             {
                 "word": lexeme.lemma,
                 "definition": first_sense.definitions[0].text,
-                "example": first_sense.examples[0].text,
+                "example": first_sense.examples[0].text if first_sense.examples else "",
             }
         )
     write_text_atomic(

@@ -16,6 +16,8 @@ class Source(StrictModel):
     source_url: str
     license: str
     retrieved_at: str
+    checksum: str | None = None
+    requires_source_sense_key: bool = False
 
 
 class StagedDefinition(StrictModel):
@@ -32,8 +34,9 @@ class StagedExample(StrictModel):
 
 class StagedSense(StrictModel):
     gloss: str | None = None
+    source_sense_key: str | None = None
     definitions: list[StagedDefinition] = Field(min_length=1)
-    examples: list[StagedExample] = Field(min_length=1)
+    examples: list[StagedExample] = Field(default_factory=list)
 
 
 class StagedForm(StrictModel):
@@ -86,6 +89,7 @@ class Sense(StrictModel):
     id: str
     lexeme_id: str
     sense_key: str
+    source_sense_key: str | None
     gloss: str | None
     definitions: tuple[Definition, ...]
     examples: tuple[Example, ...]

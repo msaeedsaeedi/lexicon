@@ -27,12 +27,29 @@ def main() -> int:
 
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{output.name}.", dir=output.parent))
+    staging = Path(tempfile.mkdtemp(prefix=".oewn-staging.", dir=output.parent))
     try:
         _run("uv", "run", "ruff", "format", "--check", ".")
         _run("uv", "run", "ruff", "check", ".")
         _run("uv", "run", "pyright")
         _run("uv", "run", "pytest")
-        _run("uv", "run", "lexicon", "build", "--input", "data/seed", "--output", str(temporary))
+        _run("uv", "run", "lexicon", "acquire-oewn", "--cache", ".cache/raw")
+        archive = ROOT / ".cache/raw/english-wordnet-2025.zip"
+        _run(
+            "uv", "run", "lexicon", "import-oewn", "--input", str(archive), "--output", str(staging)
+        )
+        _run(
+            "uv",
+            "run",
+            "lexicon",
+            "build",
+            "--input",
+            str(staging),
+            "--import-report",
+            str(staging / "import-report.json"),
+            "--output",
+            str(temporary),
+        )
         _run(
             "uv",
             "run",
@@ -49,6 +66,8 @@ def main() -> int:
     except BaseException:
         shutil.rmtree(temporary, ignore_errors=True)
         raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
     print(f"Release bundle verified: {output}")
     return 0
 

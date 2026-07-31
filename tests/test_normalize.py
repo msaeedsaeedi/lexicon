@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from lexicon.normalize import normalize_dataset
+from lexicon.normalize import identifier_fragment, normalize_dataset
 from lexicon.staging import load_staging
 
 SEED = Path("data/seed")
@@ -32,3 +32,8 @@ def test_normalization_generates_deterministic_nested_identifiers() -> None:
         "en:record:verb:form:recording",
     ]
     assert verb.senses[0].definitions[0].id == "en:record:verb:1:definition:1"
+
+
+def test_identifier_fragments_preserve_punctuation_distinctions() -> None:
+    assert identifier_fragment("22 caliber") == "22-caliber"
+    assert identifier_fragment("22-caliber") == "22-u002d-caliber"

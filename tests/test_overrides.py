@@ -4,7 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from lexicon.cli import app
-from lexicon.version import DATASET_VERSION
+from lexicon.version import DATASET_NAME, DATASET_VERSION
 
 
 def _write_overrides(
@@ -43,7 +43,7 @@ def test_overrides_block_lexemes_and_fix_definitions(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     records = [
         json.loads(line)
-        for line in (tmp_path / "artifacts" / f"lexicon-en-core-{DATASET_VERSION}.jsonl")
+        for line in (tmp_path / "artifacts" / f"{DATASET_NAME}-{DATASET_VERSION}.jsonl")
         .read_text()
         .splitlines()
     ]

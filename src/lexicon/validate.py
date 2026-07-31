@@ -20,6 +20,9 @@ class DatasetValidationError(PipelineError):
 
 def validate_dataset(dataset: Dataset) -> dict[str, int]:
     source_ids = {source.id for source in dataset.sources}
+    source_requirements = {
+        source.id: source.requires_source_sense_key for source in dataset.sources
+    }
     if not source_ids:
         raise DatasetValidationError("dataset must declare at least one source")
     for source in dataset.sources:
@@ -29,6 +32,8 @@ def validate_dataset(dataset: Dataset) -> dict[str, int]:
             )
         if not urlparse(source.source_url).scheme:
             raise DatasetValidationError(f"source {source.id} has an invalid source URL")
+        if source.source_url.startswith("https://") and not source.checksum:
+            raise DatasetValidationError(f"source {source.id} is missing a raw-input checksum")
     lexeme_ids = [lexeme.id for lexeme in dataset.lexemes]
     if len(lexeme_ids) != len(set(lexeme_ids)):
         raise DatasetValidationError("dataset contains duplicate lexeme IDs")
@@ -40,6 +45,10 @@ def validate_dataset(dataset: Dataset) -> dict[str, int]:
         if not any(form.is_canonical for form in lexeme.forms):
             raise DatasetValidationError(f"lexeme {lexeme.id} has no canonical form")
         for sense in lexeme.senses:
+            if source_requirements[lexeme.source_id] and not sense.source_sense_key:
+                raise DatasetValidationError(
+                    f"sense {sense.id} is missing its required source sense key"
+                )
             for definition in sense.definitions:
                 if definition.source_id not in source_ids:
                     raise DatasetValidationError(

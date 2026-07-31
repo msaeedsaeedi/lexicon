@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from lexicon.cli import app
 from lexicon.compile import sha256
-from lexicon.version import DATASET_VERSION
+from lexicon.version import DATASET_NAME, DATASET_VERSION
 
 
 def test_repeated_builds_have_identical_artifact_checksums(tmp_path: Path) -> None:
@@ -20,8 +20,8 @@ def test_repeated_builds_have_identical_artifact_checksums(tmp_path: Path) -> No
     )
 
     for filename in (
-        f"lexicon-en-core-{DATASET_VERSION}.jsonl",
-        f"lexicon-en-core-{DATASET_VERSION}.sqlite",
+        f"{DATASET_NAME}-{DATASET_VERSION}.jsonl",
+        f"{DATASET_NAME}-{DATASET_VERSION}.sqlite",
         "manifest.json",
     ):
         assert sha256(first / filename) == sha256(second / filename)

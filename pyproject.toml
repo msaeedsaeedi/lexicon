@@ -1,6 +1,6 @@
 [project]
 name = "lexicon-pipeline"
-version = "0.1.2"
+version = "0.2.0"
 description = "Deterministic lexical dataset pipeline for Vocab."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

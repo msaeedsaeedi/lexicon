@@ -5,6 +5,7 @@
     "version": "0.1.0",
     "source_url": "https://example.invalid/lexicon/curated-seed",
     "license": "CC0-1.0",
-    "retrieved_at": "2026-07-31"
+    "retrieved_at": "2026-07-31",
+    "checksum": "ee1ab89b8ee518507281a985f9737a628766985d43c17c2792a4212fe171473d"
   }
 ]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import unicodedata
 from dataclasses import dataclass
 
@@ -42,8 +41,15 @@ def normalized_key(value: str) -> str:
 
 
 def identifier_fragment(value: str) -> str:
-    collapsed = re.sub(r"[^a-z0-9]+", "-", normalized_key(value))
-    return collapsed.strip("-")
+    fragments: list[str] = []
+    for character in normalized_key(value):
+        if character.isascii() and character.isalnum():
+            fragments.append(character)
+        elif character == " ":
+            fragments.append("-")
+        else:
+            fragments.append(f"-u{ord(character):04x}-")
+    return "".join(fragments).strip("-")
 
 
 def normalize_dataset(sources: tuple[Source, ...], records: tuple[StagedLexeme, ...]) -> Dataset:
@@ -74,7 +80,7 @@ def normalize_dataset_with_report(
             exact_duplicate_lexeme_ids.append(lexeme.id)
 
     if language_ids != {"en"}:
-        raise NormalizationError("v0.1.0 supports only the en language dataset")
+        raise NormalizationError("this pipeline supports only the en language dataset")
     dataset = Dataset(
         language=Language(id="en", iso_639_1="en", name=LANGUAGE_NAMES["en"]),
         sources=tuple(sorted(sources, key=lambda source: source.id)),
@@ -149,6 +155,7 @@ def normalize_lexeme(record: StagedLexeme) -> Lexeme:
                 id=sense_id,
                 lexeme_id=lexeme_id,
                 sense_key=str(sense_number),
+                source_sense_key=staged_sense.source_sense_key,
                 gloss=normalize_text(staged_sense.gloss) if staged_sense.gloss else None,
                 definitions=definitions,
                 examples=examples,

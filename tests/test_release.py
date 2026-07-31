@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from lexicon.cli import app
 from lexicon.release import ReleaseVerificationError, verify_release
-from lexicon.version import DATASET_VERSION
+from lexicon.version import DATASET_NAME, DATASET_VERSION
 
 
 def test_finalized_release_verifies_all_bundle_files(tmp_path: Path) -> None:
@@ -21,7 +21,7 @@ def test_finalized_release_verifies_all_bundle_files(tmp_path: Path) -> None:
             [
                 "export-legacy",
                 "--input",
-                str(tmp_path / f"lexicon-en-core-{DATASET_VERSION}.jsonl"),
+                str(tmp_path / f"{DATASET_NAME}-{DATASET_VERSION}.jsonl"),
                 "--output",
                 str(tmp_path / f"vocab-compat-{DATASET_VERSION}.json"),
             ],
@@ -36,8 +36,8 @@ def test_finalized_release_verifies_all_bundle_files(tmp_path: Path) -> None:
     assert {item["filename"] for item in release_manifest["files"]} == {
         "ATTRIBUTION.md",
         "duplicate-report.json",
-        f"lexicon-en-core-{DATASET_VERSION}.jsonl",
-        f"lexicon-en-core-{DATASET_VERSION}.sqlite",
+        f"{DATASET_NAME}-{DATASET_VERSION}.jsonl",
+        f"{DATASET_NAME}-{DATASET_VERSION}.sqlite",
         "manifest.json",
         f"vocab-compat-{DATASET_VERSION}.json",
     }
@@ -51,7 +51,7 @@ def test_release_verification_rejects_changed_bundle_file(tmp_path: Path) -> Non
         [
             "export-legacy",
             "--input",
-            str(tmp_path / f"lexicon-en-core-{DATASET_VERSION}.jsonl"),
+            str(tmp_path / f"{DATASET_NAME}-{DATASET_VERSION}.jsonl"),
             "--output",
             str(tmp_path / f"vocab-compat-{DATASET_VERSION}.json"),
         ],

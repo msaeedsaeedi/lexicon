@@ -97,8 +97,8 @@ error [overrides.invalid_configuration]: invalid override configuration: ...
 After a build with overrides, confirm the results:
 
 ```bash
-uv run lexicon validate artifacts/lexicon-en-core-0.1.0.jsonl
-uv run lexicon inspect artifacts/lexicon-en-core-0.1.0.sqlite
+uv run lexicon validate artifacts/lexicon-en-oewn-0.2.0.jsonl
+uv run lexicon inspect artifacts/lexicon-en-oewn-0.2.0.sqlite
 ```
 
 The SQLite and JSONL artifacts must reflect the same overridden dataset; both are compiled from the

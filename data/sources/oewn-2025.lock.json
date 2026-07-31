@@ -1,0 +1,12 @@
+{
+  "id": "oewn-2025",
+  "name": "Open English WordNet",
+  "version": "2025",
+  "distribution_url": "https://en-word.net/downloads/english-wordnet-2025.zip",
+  "filename": "english-wordnet-2025.zip",
+  "sha256": "38b16326159f51853626b7d24a44c453fa88ab33f06fce5ec8fc5996d1c2be93",
+  "license": "CC-BY-4.0",
+  "attribution_url": "https://en-word.net/downloads",
+  "released_at": "2025-12-31",
+  "scope": "common nouns, verbs, adjectives, and adverbs; excludes proper nouns"
+}

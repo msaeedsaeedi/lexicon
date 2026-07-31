@@ -1,7 +1,84 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Lexicon dataset manifest v0.1.0",
+  "title": "Lexicon dataset manifest v0.2.0",
   "type": "object",
   "required": ["dataset", "dataset_version", "schema_version", "pipeline_version", "language", "record_counts", "sources", "artifacts", "compatibility", "build"],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "properties": {
+    "dataset": {"type": "string"},
+    "dataset_version": {"type": "string"},
+    "schema_version": {"type": "string"},
+    "pipeline_version": {"type": "string"},
+    "import_report": {"type": ["object", "null"]},
+    "language": {
+      "type": "object",
+      "required": ["id", "iso_639_1", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "iso_639_1": {"type": "string"},
+        "name": {"type": "string"}
+      }
+    },
+    "record_counts": {
+      "type": "object",
+      "required": ["lexemes", "forms", "senses", "definitions", "examples"],
+      "additionalProperties": false,
+      "properties": {
+        "lexemes": {"type": "integer", "minimum": 0},
+        "forms": {"type": "integer", "minimum": 0},
+        "senses": {"type": "integer", "minimum": 0},
+        "definitions": {"type": "integer", "minimum": 0},
+        "examples": {"type": "integer", "minimum": 0}
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "version", "source_url", "license", "retrieved_at", "requires_source_sense_key"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "version": {"type": "string"},
+          "source_url": {"type": "string"},
+          "license": {"type": "string"},
+          "retrieved_at": {"type": "string"},
+          "checksum": {"type": ["string", "null"]},
+          "requires_source_sense_key": {"type": "boolean"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "filename", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "filename": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["legacy_word_definition_example_export"],
+      "additionalProperties": false,
+      "properties": {
+        "legacy_word_definition_example_export": {"const": true}
+      }
+    },
+    "build": {
+      "type": "object",
+      "required": ["network_accessed", "deterministic"],
+      "additionalProperties": false,
+      "properties": {
+        "network_accessed": {"const": false},
+        "deterministic": {"const": true}
+      }
+    }
+  }
 }

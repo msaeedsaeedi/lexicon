@@ -23,7 +23,9 @@ CREATE TABLE sources (
   version TEXT NOT NULL,
   source_url TEXT NOT NULL,
   license TEXT NOT NULL,
-  retrieved_at TEXT NOT NULL
+  retrieved_at TEXT NOT NULL,
+  checksum TEXT,
+  requires_source_sense_key INTEGER NOT NULL CHECK (requires_source_sense_key IN (0, 1))
 );
 CREATE TABLE lexemes (
   id TEXT PRIMARY KEY,
@@ -45,6 +47,7 @@ CREATE TABLE senses (
   id TEXT PRIMARY KEY,
   lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
   sense_key TEXT NOT NULL,
+  source_sense_key TEXT,
   gloss TEXT
 );
 CREATE TABLE definitions (
@@ -63,6 +66,7 @@ CREATE TABLE examples (
 );
 CREATE INDEX forms_lexeme_id ON forms(lexeme_id);
 CREATE INDEX senses_lexeme_id ON senses(lexeme_id);
+CREATE INDEX senses_source_sense_key ON senses(source_sense_key);
 CREATE INDEX definitions_sense_id ON definitions(sense_id);
 CREATE INDEX examples_sense_id ON examples(sense_id);
 """
@@ -119,7 +123,7 @@ def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> No
                 (dataset.language.id, dataset.language.iso_639_1, dataset.language.name),
             )
             connection.executemany(
-                "INSERT INTO sources VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO sources VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     (
                         source.id,
@@ -128,6 +132,8 @@ def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> No
                         source.source_url,
                         source.license,
                         source.retrieved_at,
+                        source.checksum,
+                        int(source.requires_source_sense_key),
                     )
                     for source in dataset.sources
                 ],
@@ -160,8 +166,14 @@ def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> No
                 )
                 for sense in lexeme.senses:
                     connection.execute(
-                        "INSERT INTO senses VALUES (?, ?, ?, ?)",
-                        (sense.id, sense.lexeme_id, sense.sense_key, sense.gloss),
+                        "INSERT INTO senses VALUES (?, ?, ?, ?, ?)",
+                        (
+                            sense.id,
+                            sense.lexeme_id,
+                            sense.sense_key,
+                            sense.source_sense_key,
+                            sense.gloss,
+                        ),
                     )
                     connection.executemany(
                         "INSERT INTO definitions VALUES (?, ?, ?, ?, ?, ?)",

@@ -9,6 +9,8 @@ from .compile import write_jsonl, write_sqlite
 from .export import export_legacy
 from .manifest import write_attribution, write_manifest
 from .normalize import normalize_dataset_with_report
+from .oewn import acquire as acquire_oewn_archive
+from .oewn import import_archive, load_lock, write_staging
 from .overrides import apply_overrides, load_overrides
 from .release import verify_release, write_release_manifest
 from .reports import write_duplicate_report
@@ -24,6 +26,7 @@ def build(
     input_dir: Path = typer.Option(..., "--input", exists=True, file_okay=False),
     output_dir: Path = typer.Option(..., "--output", file_okay=False),
     overrides_dir: Path | None = typer.Option(None, "--overrides", file_okay=False),
+    import_report_path: Path | None = typer.Option(None, "--import-report", exists=True),
 ) -> None:
     """Compile curated staging data into canonical dataset artifacts."""
     try:
@@ -49,10 +52,27 @@ def build(
             },
         )
         write_duplicate_report(normalized, duplicate_report_path)
+        artifacts = {
+            "duplicate_report": duplicate_report_path,
+            "jsonl": jsonl_path,
+            "sqlite": sqlite_path,
+        }
+        import_report: dict[str, object] | None = None
+        if import_report_path is not None:
+            import_report = json.loads(import_report_path.read_text(encoding="utf-8"))
+            published_report_path = output_dir / "import-report.json"
+            from .compile import write_text_atomic
+
+            write_text_atomic(
+                published_report_path,
+                json.dumps(import_report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            )
+            artifacts["import_report"] = published_report_path
         write_manifest(
             dataset,
-            {"duplicate_report": duplicate_report_path, "jsonl": jsonl_path, "sqlite": sqlite_path},
+            artifacts,
             output_dir / "manifest.json",
+            import_report,
         )
         write_attribution(dataset, output_dir / "ATTRIBUTION.md")
     except Exception as error:
@@ -64,6 +84,38 @@ def build(
         raise
     typer.echo(
         f"Built {len(dataset.lexemes)} lexemes in {output_dir}; {len(normalized.exact_duplicate_lexeme_ids)} exact duplicate inputs reported"
+    )
+
+
+@app.command("acquire-oewn")
+def acquire_oewn(
+    cache_dir: Path = typer.Option(Path(".cache/raw"), "--cache", file_okay=False),
+    lock_path: Path = typer.Option(Path("data/sources/oewn-2025.lock.json"), "--lock", exists=True),
+) -> None:
+    """Download the checksum-locked OEWN 2025 source archive into the local cache."""
+    try:
+        archive = acquire_oewn_archive(load_lock(lock_path), cache_dir)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(archive)
+
+
+@app.command("import-oewn")
+def import_oewn(
+    input_path: Path = typer.Option(..., "--input", exists=True, dir_okay=False),
+    output_dir: Path = typer.Option(..., "--output", file_okay=False),
+    lock_path: Path = typer.Option(Path("data/sources/oewn-2025.lock.json"), "--lock", exists=True),
+) -> None:
+    """Convert a checksum-locked OEWN archive into generic Lexicon staging records."""
+    try:
+        result = import_archive(input_path, load_lock(lock_path))
+        write_staging(result, output_dir)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(
+        f"Imported {result.synset_count} synsets into {len(result.records)} lexemes in {output_dir}"
     )
 
 
