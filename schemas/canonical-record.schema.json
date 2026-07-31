@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lexicon canonical lexeme record v0.1.0",
+  "type": "object",
+  "required": ["id", "language_id", "lemma", "normalized_lemma", "part_of_speech", "source_id", "forms", "senses"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "language_id": {"const": "en"},
+    "lemma": {"type": "string", "minLength": 1},
+    "normalized_lemma": {"type": "string", "minLength": 1},
+    "part_of_speech": {"enum": ["noun", "verb", "adjective", "adverb"]},
+    "source_id": {"type": "string"},
+    "forms": {"type": "array", "minItems": 1},
+    "senses": {"type": "array", "minItems": 1}
+  }
+}

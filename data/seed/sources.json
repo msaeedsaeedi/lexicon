@@ -1,0 +1,10 @@
+[
+  {
+    "id": "internal-curated",
+    "name": "Lexicon curated seed",
+    "version": "0.1.0",
+    "source_url": "https://example.invalid/lexicon/curated-seed",
+    "license": "CC0-1.0",
+    "retrieved_at": "2026-07-31"
+  }
+]

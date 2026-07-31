@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lexicon dataset manifest v0.1.0",
+  "type": "object",
+  "required": ["dataset", "dataset_version", "schema_version", "pipeline_version", "language", "record_counts", "sources", "artifacts", "compatibility", "build"],
+  "additionalProperties": false
+}
