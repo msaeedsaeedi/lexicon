@@ -5,11 +5,12 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from .errors import PipelineError
 from .model import Source, StagedLexeme
 
 
-class StagingError(ValueError):
-    pass
+class StagingError(PipelineError):
+    code = "staging.invalid_input"
 
 
 def load_staging(input_dir: Path) -> tuple[tuple[Source, ...], tuple[StagedLexeme, ...]]:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
+from .errors import PipelineError
 from .model import (
     Dataset,
     Definition,
@@ -20,8 +22,15 @@ POS_ALIASES = {"adj": "adjective", "adv": "adverb", "n": "noun", "v": "verb"}
 LANGUAGE_NAMES = {"en": "English"}
 
 
-class NormalizationError(ValueError):
-    pass
+class NormalizationError(PipelineError):
+    code = "normalization.invalid_record"
+
+
+@dataclass(frozen=True)
+class NormalizationResult:
+    dataset: Dataset
+    input_record_count: int
+    exact_duplicate_lexeme_ids: tuple[str, ...]
 
 
 def normalize_text(value: str) -> str:
@@ -38,11 +47,18 @@ def identifier_fragment(value: str) -> str:
 
 
 def normalize_dataset(sources: tuple[Source, ...], records: tuple[StagedLexeme, ...]) -> Dataset:
+    return normalize_dataset_with_report(sources, records).dataset
+
+
+def normalize_dataset_with_report(
+    sources: tuple[Source, ...], records: tuple[StagedLexeme, ...]
+) -> NormalizationResult:
     source_ids = {source.id for source in sources}
     if len(source_ids) != len(sources):
         raise NormalizationError("source IDs must be unique")
 
     normalized: dict[str, Lexeme] = {}
+    exact_duplicate_lexeme_ids: list[str] = []
     language_ids: set[str] = set()
     for record in records:
         if record.source_id not in source_ids:
@@ -54,13 +70,20 @@ def normalize_dataset(sources: tuple[Source, ...], records: tuple[StagedLexeme, 
             normalized[lexeme.id] = lexeme
         elif existing != lexeme:
             raise NormalizationError(f"conflicting records resolve to lexeme ID {lexeme.id}")
+        else:
+            exact_duplicate_lexeme_ids.append(lexeme.id)
 
     if language_ids != {"en"}:
         raise NormalizationError("v0.1.0 supports only the en language dataset")
-    return Dataset(
+    dataset = Dataset(
         language=Language(id="en", iso_639_1="en", name=LANGUAGE_NAMES["en"]),
         sources=tuple(sorted(sources, key=lambda source: source.id)),
         lexemes=tuple(sorted(normalized.values(), key=lambda lexeme: lexeme.id)),
+    )
+    return NormalizationResult(
+        dataset=dataset,
+        input_record_count=len(records),
+        exact_duplicate_lexeme_ids=tuple(sorted(exact_duplicate_lexeme_ids)),
     )
 
 

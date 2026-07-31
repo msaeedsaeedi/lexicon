@@ -24,7 +24,14 @@ def test_cli_build_generates_equivalent_artifacts(tmp_path: Path) -> None:
         "examples": 4,
     }
     assert manifest["record_counts"] == {"definitions": 4, "examples": 4, "forms": 6, "lexemes": 3, "senses": 4}
-    assert {item["name"] for item in manifest["artifacts"]} == {"jsonl", "sqlite"}
+    assert manifest["pipeline_version"] == "0.1.1"
+    assert {item["name"] for item in manifest["artifacts"]} == {"duplicate_report", "jsonl", "sqlite"}
+    assert json.loads((tmp_path / "duplicate-report.json").read_text()) == {
+        "conflicting_duplicates": "build failure",
+        "exact_duplicate_lexemes": [{"discarded_record_count": 1, "lexeme_id": "en:ambiguous:adjective"}],
+        "input_record_count": 4,
+        "normalized_lexeme_count": 3,
+    }
 
 
 def test_legacy_export_is_only_a_projection(tmp_path: Path) -> None:
