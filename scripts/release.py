@@ -74,12 +74,47 @@ def main() -> int:
             str(ROOT / "data/quality/oewn-2025.baseline.json"),
         )
         temporary.replace(output)
+        archive = output.parent / f"{output.name}.tar.gz"
+        checksum = output.parent / f"{output.name}.tar.gz.sha256"
+        _run(
+            "uv",
+            "run",
+            "lexicon",
+            "create-archive",
+            "--directory",
+            str(output),
+            "--output",
+            str(archive),
+            "--checksum",
+            str(checksum),
+        )
+        extract = Path(tempfile.mkdtemp(prefix=".archive-check.", dir=output.parent))
+        try:
+            _run(
+                "uv",
+                "run",
+                "lexicon",
+                "verify-archive",
+                "--archive",
+                str(archive),
+                "--checksum",
+                str(checksum),
+                "--extract",
+                str(extract),
+            )
+        finally:
+            shutil.rmtree(extract, ignore_errors=True)
     except BaseException:
         shutil.rmtree(temporary, ignore_errors=True)
+        shutil.rmtree(output, ignore_errors=True)
+        archive = output.parent / f"{output.name}.tar.gz"
+        archive.unlink(missing_ok=True)
+        archive.with_name(archive.name + ".sha256").unlink(missing_ok=True)
         raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     print(f"Release bundle verified: {output}")
+    print(f"Release archive verified: {output.name}.tar.gz")
     return 0
 
 

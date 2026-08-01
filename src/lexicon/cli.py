@@ -5,6 +5,7 @@ from pathlib import Path
 
 import typer
 
+from .archive import create_release_archive, verify_release_archive, write_checksum_file
 from .compile import write_jsonl, write_sqlite
 from .export import export_legacy
 from .health import check_baseline, dataset_health, write_health_report
@@ -13,6 +14,14 @@ from .normalize import normalize_dataset_with_report
 from .oewn import acquire as acquire_oewn_archive
 from .oewn import import_archive, load_lock, write_staging
 from .overrides import apply_overrides, load_overrides
+from .publish import (
+    ensure_no_existing_release,
+    publish_release,
+    resolve_main_commit,
+    resolve_tag_commit,
+    validate_release_tag,
+    validate_tag_at_main,
+)
 from .release import verify_release, write_release_manifest
 from .reports import write_duplicate_report
 from .staging import load_staging
@@ -191,6 +200,74 @@ def verify_release_command(
         _exit_with_pipeline_error(error)
         raise
     typer.echo(json.dumps(counts, sort_keys=True))
+
+
+@app.command("create-archive")
+def create_archive_command(
+    directory: Path = typer.Option(..., "--directory", exists=True, file_okay=False),
+    archive_path: Path = typer.Option(..., "--output", dir_okay=False),
+    checksum_path: Path = typer.Option(None, "--checksum", dir_okay=False),
+) -> None:
+    """Create a deterministic release archive and its top-level SHA-256 checksum."""
+    try:
+        create_release_archive(directory, archive_path)
+        checksum = checksum_path or archive_path.with_name(archive_path.name + ".sha256")
+        write_checksum_file(archive_path, checksum)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Created release archive {archive_path}")
+
+
+@app.command("verify-archive")
+def verify_archive_command(
+    archive_path: Path = typer.Option(..., "--archive", exists=True, dir_okay=False),
+    checksum_path: Path = typer.Option(None, "--checksum", exists=True, dir_okay=False),
+    extract_dir: Path = typer.Option(Path(".cache/archive-check"), "--extract", file_okay=False),
+) -> None:
+    """Verify a release archive checksum and validate its extracted bundle."""
+    try:
+        checksum = checksum_path or archive_path.with_name(archive_path.name + ".sha256")
+        counts = verify_release_archive(archive_path, checksum, extract_dir)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(json.dumps(counts, sort_keys=True))
+
+
+@app.command("publish-gate")
+def publish_gate_command(
+    tag: str = typer.Option(..., "--tag"),
+    owner_repo: str = typer.Option(..., "--owner-repo"),
+    main_sha: str | None = typer.Option(None, "--main-sha"),
+    repo_dir: Path | None = typer.Option(None, "--repo-dir", exists=True, file_okay=False),
+) -> None:
+    """Require the tag to match the dataset version and point exactly at main."""
+    try:
+        validate_release_tag(tag)
+        main_commit = main_sha if main_sha is not None else resolve_main_commit(repo_dir)
+        validate_tag_at_main(resolve_tag_commit(tag, repo_dir), main_commit)
+        ensure_no_existing_release(owner_repo, tag)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Release gate passed for {tag}")
+
+
+@app.command("publish-release")
+def publish_release_command(
+    tag: str = typer.Option(..., "--tag"),
+    owner_repo: str = typer.Option(..., "--owner-repo"),
+    archive: Path = typer.Option(..., "--archive", exists=True, dir_okay=False),
+    checksum: Path = typer.Option(..., "--checksum", exists=True, dir_okay=False),
+) -> None:
+    """Create an immutable GitHub Release with the archive and checksum assets."""
+    try:
+        publish_release(owner_repo, tag, archive, checksum)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Published GitHub Release for {tag}")
 
 
 def _exit_with_pipeline_error(error: Exception) -> None:

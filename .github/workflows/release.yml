@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      - name: Resolve current main commit
+        id: main
+        run: |
+          echo "sha=$(git rev-parse refs/remotes/origin/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Require tag to match version and point exactly at main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run lexicon publish-gate \
+            --tag "$GITHUB_REF_NAME" \
+            --owner-repo "$GITHUB_REPOSITORY" \
+            --main-sha "${{ steps.main.outputs.sha }}"
+
+      - name: Run full release preflight and bundle verification
+        run: uv run python scripts/release.py
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="lexicon-en-oewn-${version}"
+          archive="dist/${name}.tar.gz"
+          checksum="dist/${name}.tar.gz.sha256"
+          uv run lexicon publish-release \
+            --owner-repo "$GITHUB_REPOSITORY" \
+            --tag "$GITHUB_REF_NAME" \
+            --archive "$archive" \
+            --checksum "$checksum"

@@ -93,6 +93,17 @@ def write_text_atomic(target: Path, content: str) -> None:
         raise
 
 
+def write_bytes_atomic(target: Path, content: bytes) -> None:
+    temporary, descriptor = _atomic_path(target)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(content)
+        temporary.replace(target)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 def write_jsonl(dataset: Dataset, target: Path) -> None:
     temporary, descriptor = _atomic_path(target)
     try:
