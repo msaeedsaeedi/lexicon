@@ -115,6 +115,12 @@ def validate_sqlite(path: Path) -> dict[str, int]:
             "senses",
             "definitions",
             "examples",
+            "rankings",
+            "collections",
+            "collection_members",
+            "curated_lists",
+            "list_members",
+            "curation",
         }
         if missing := required - tables:
             raise ArtifactValidationError(f"SQLite artifact missing tables: {sorted(missing)}")
@@ -148,7 +154,8 @@ def validate_artifact(path: Path) -> dict[str, int]:
 def validate_artifact_pair(jsonl_path: Path, sqlite_path: Path) -> dict[str, int]:
     jsonl_counts = validate_jsonl(jsonl_path)
     sqlite_counts = validate_sqlite(sqlite_path)
-    if jsonl_counts != sqlite_counts:
+    canonical_counts = {key: sqlite_counts[key] for key in jsonl_counts}
+    if jsonl_counts != canonical_counts:
         raise ArtifactValidationError("SQLite and JSONL artifact record counts differ")
     return sqlite_counts
 

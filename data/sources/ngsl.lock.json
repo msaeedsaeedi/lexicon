@@ -1,0 +1,11 @@
+{
+  "id": "ngsl-1.2",
+  "name": "New General Service List",
+  "version": "1.2",
+  "source_url": "https://www.newgeneralservicelist.com/s/NGSL_12_stats.csv",
+  "filename": "NGSL_12_stats.csv",
+  "sha256": "2098bab8955a120a9766c6282a51d7d578c6cb0a7d946600d2ffb73ba25a0b44",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "New General Service List (NGSL) 1.2, Browne, Culligan and Phillips.",
+  "released_at": "2026-08-03"
+}

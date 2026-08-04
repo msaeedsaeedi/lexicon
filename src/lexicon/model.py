@@ -110,3 +110,50 @@ class Dataset(StrictModel):
     language: Language
     sources: tuple[Source, ...]
     lexemes: tuple[Lexeme, ...]
+
+
+class Ranking(StrictModel):
+    lexeme_id: str
+    rank: int = Field(ge=1)
+    zipf: float = Field(ge=0)
+    source_id: str
+
+
+class Collection(StrictModel):
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    selection_basis: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    pipeline_version: str = Field(min_length=1)
+
+
+class CollectionMember(StrictModel):
+    collection_id: str
+    lexeme_id: str
+    sense_id: str | None = None
+    rank: int = Field(ge=1)
+    inclusion_reason: str
+
+
+class CuratedList(StrictModel):
+    id: str
+    title: str
+    source_id: str
+    version: str
+    pipeline_version: str
+
+
+class ListMember(StrictModel):
+    list_id: str
+    lemma: str
+    rank: int = Field(ge=1)
+    band: int = Field(ge=1, le=5)
+    part_of_speech: str | None = None
+    source_id: str
+
+
+class Curation(StrictModel):
+    lexeme_id: str
+    grade: Literal["graded", "excluded_junk", "curated_allowlist"]
+    reason: str
+    pipeline_version: str

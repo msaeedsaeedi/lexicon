@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Lexicon dataset manifest v0.2.0",
+  "title": "Lexicon dataset manifest v0.3.0",
   "type": "object",
-  "required": ["dataset", "dataset_version", "schema_version", "pipeline_version", "language", "record_counts", "sources", "artifacts", "compatibility", "build"],
+  "required": ["dataset", "dataset_version", "schema_version", "pipeline_version", "language", "record_counts", "sources", "collections", "artifacts", "compatibility", "build"],
   "additionalProperties": false,
   "properties": {
     "dataset": {"type": "string"},
@@ -29,9 +29,13 @@
         "forms": {"type": "integer", "minimum": 0},
         "senses": {"type": "integer", "minimum": 0},
         "definitions": {"type": "integer", "minimum": 0},
-        "examples": {"type": "integer", "minimum": 0}
+        "examples": {"type": "integer", "minimum": 0},
+        "rankings": {"type": "integer", "minimum": 0},
+        "collections": {"type": "integer", "minimum": 0},
+        "collection_members": {"type": "integer", "minimum": 0}
       }
     },
+    "collections": {"type": "array"},
     "sources": {
       "type": "array",
       "items": {

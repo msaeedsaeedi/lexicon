@@ -34,6 +34,7 @@ def main() -> int:
         _run("uv", "run", "pyright")
         _run("uv", "run", "pytest")
         _run("uv", "run", "lexicon", "acquire-oewn", "--cache", ".cache/raw")
+        _run("uv", "run", "lexicon", "acquire-ngsl", "--cache", ".cache/raw")
         archive = ROOT / ".cache/raw/english-wordnet-2025.zip"
         _run(
             "uv", "run", "lexicon", "import-oewn", "--input", str(archive), "--output", str(staging)

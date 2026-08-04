@@ -44,6 +44,8 @@ def test_cli_build_generates_equivalent_artifacts(tmp_path: Path) -> None:
     assert manifest["dataset_version"] == DATASET_VERSION
     assert manifest["pipeline_version"] == PIPELINE_VERSION
     assert {item["name"] for item in manifest["artifacts"]} == {
+        "collection_jsonl",
+        "collection_report",
         "duplicate_report",
         "health_report",
         "jsonl",
@@ -57,33 +59,35 @@ def test_cli_build_generates_equivalent_artifacts(tmp_path: Path) -> None:
         "input_record_count": 4,
         "normalized_lexeme_count": 3,
     }
-    assert json.loads((tmp_path / "health-report.json").read_text()) == {
-        "coverage": {
-            "lexemes_without_canonical_form": 0,
-            "senses_missing_required_source_sense_key": 0,
-            "senses_with_examples": 4,
-            "senses_without_definitions": 0,
-            "senses_without_examples": 0,
-            "senses_without_gloss": 0,
-        },
-        "duplicates": {"exact_duplicate_input_records": 1, "input_records": 4},
-        "missing_source_provenance": {"definitions": 0, "examples": 0, "lexemes": 0},
-        "part_of_speech": {"adjective": 1, "noun": 1, "verb": 1},
-        "record_counts": {
-            "definitions": 4,
-            "examples": 4,
-            "forms": 6,
-            "lexemes": 3,
-            "senses": 4,
-        },
-        "source": [
-            {
-                "checksum": "ee1ab89b8ee518507281a985f9737a628766985d43c17c2792a4212fe171473d",
-                "id": "internal-curated",
-                "version": "0.1.0",
-            }
-        ],
+    health = json.loads((tmp_path / "health-report.json").read_text())
+    assert health["collection_readiness"]["eligible_for_initial_pool"] == 3
+    assert {item["id"] for item in health["source"]} == {
+        "internal-curated",
+        "ngsl-1.2",
+        "wordfreq-3.1.1",
     }
+
+    with sqlite3.connect(sqlite_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM rankings").fetchone()[0] == 3
+        assert connection.execute("SELECT COUNT(*) FROM collections").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM collection_members").fetchone()[0] == 2
+        assert connection.execute("SELECT COUNT(*) FROM curated_lists").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM list_members").fetchone()[0] == 2801
+        assert connection.execute("SELECT COUNT(*) FROM curation").fetchone()[0] == 3
+    report = json.loads((tmp_path / "collection-report.json").read_text())
+    assert report["ngsl_coverage"]["ngsl_words"] == 2801
+    collection_records = [
+        json.loads(line)
+        for line in (tmp_path / f"en-general-starter-{DATASET_VERSION}.jsonl")
+        .read_text()
+        .splitlines()
+    ]
+    assert [record["lexeme"]["id"] for record in collection_records] == [
+        "en:record:noun",
+        "en:record:verb",
+    ]
+    assert all(record["curation"]["grade"] == "graded" for record in collection_records)
+    assert report["member_sha256"]
 
 
 def test_build_baseline_requires_exact_health_report(tmp_path: Path) -> None:

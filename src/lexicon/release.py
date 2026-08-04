@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
+from .collections import collection_member_digest
 from .compile import sha256, write_text_atomic
 from .errors import PipelineError
 from .health import check_baseline
+from .model import CollectionMember
 from .validate import validate_artifact_pair
 from .version import DATASET_NAME, DATASET_VERSION, PIPELINE_VERSION, SCHEMA_VERSION
 
@@ -70,6 +73,13 @@ def verify_release(
         raise ReleaseVerificationError("release bundle is missing dataset health report")
     if baseline_path is not None:
         check_baseline(_read_json(health_report, "dataset health report"), baseline_path)
+    collection_report = directory / "collection-report.json"
+    if not collection_report.is_file():
+        raise ReleaseVerificationError("release bundle is missing collection report")
+    _validate_collection_report(collection_report, directory / f"{stem}.sqlite")
+    _validate_collection_jsonl(
+        directory / f"en-general-starter-{DATASET_VERSION}.jsonl", directory / f"{stem}.sqlite"
+    )
     _validate_legacy_export(directory / f"vocab-compat-{DATASET_VERSION}.json")
 
     release_manifest = directory / "release-manifest.json"
@@ -114,6 +124,55 @@ def _validate_legacy_export(path: Path) -> None:
     for entry in payload:
         if not isinstance(entry, dict) or set(entry) != {"word", "definition", "example"}:
             raise ReleaseVerificationError("legacy compatibility export contains an invalid entry")
+
+
+def _validate_collection_report(path: Path, sqlite_path: Path) -> None:
+    payload = _read_json(path, "collection report")
+    if not isinstance(payload.get("collection_id"), str):
+        raise ReleaseVerificationError("collection report is missing collection_id")
+    members = _collection_members(sqlite_path)
+    if payload.get("member_count") != len(members):
+        raise ReleaseVerificationError("collection report member count does not match SQLite")
+    if payload.get("member_sha256") != collection_member_digest(members):
+        raise ReleaseVerificationError("collection report members do not match SQLite")
+
+
+def _collection_members(path: Path) -> tuple[CollectionMember, ...]:
+    try:
+        with sqlite3.connect(path) as connection:
+            rows = connection.execute(
+                "SELECT collection_id, lexeme_id, sense_id, rank, inclusion_reason "
+                "FROM collection_members ORDER BY collection_id, rank, lexeme_id"
+            ).fetchall()
+            return tuple(
+                CollectionMember(
+                    collection_id=row[0],
+                    lexeme_id=row[1],
+                    sense_id=row[2],
+                    rank=row[3],
+                    inclusion_reason=row[4],
+                )
+                for row in rows
+            )
+    except sqlite3.Error as error:
+        raise ReleaseVerificationError("cannot read collection members from SQLite") from error
+
+
+def _validate_collection_jsonl(path: Path, sqlite_path: Path) -> None:
+    try:
+        records = [
+            json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line
+        ]
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReleaseVerificationError("cannot read filtered collection JSONL") from error
+    try:
+        members = tuple(CollectionMember.model_validate(record["member"]) for record in records)
+    except (KeyError, ValueError) as error:
+        raise ReleaseVerificationError(
+            "filtered collection JSONL contains an invalid member"
+        ) from error
+    if members != _collection_members(sqlite_path):
+        raise ReleaseVerificationError("filtered collection JSONL members do not match SQLite")
 
 
 def _verify_release_files(directory: Path, payload: dict[str, object]) -> None:

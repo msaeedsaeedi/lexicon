@@ -7,7 +7,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from .model import Dataset
+from .model import Collection, CollectionMember, CuratedList, Curation, Dataset, ListMember, Ranking
 
 SQL_SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -64,11 +64,56 @@ CREATE TABLE examples (
   text TEXT NOT NULL,
   source_id TEXT NOT NULL REFERENCES sources(id)
 );
+CREATE TABLE rankings (
+  lexeme_id TEXT PRIMARY KEY REFERENCES lexemes(id),
+  rank INTEGER NOT NULL CHECK (rank >= 1),
+  zipf REAL NOT NULL CHECK (zipf >= 0),
+  source_id TEXT NOT NULL REFERENCES sources(id)
+);
+CREATE TABLE collections (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  selection_basis TEXT NOT NULL,
+  version TEXT NOT NULL,
+  pipeline_version TEXT NOT NULL
+);
+CREATE TABLE collection_members (
+  collection_id TEXT NOT NULL REFERENCES collections(id),
+  lexeme_id TEXT NOT NULL REFERENCES lexemes(id),
+  sense_id TEXT REFERENCES senses(id),
+  rank INTEGER NOT NULL CHECK (rank >= 1),
+  inclusion_reason TEXT NOT NULL,
+  UNIQUE(collection_id, lexeme_id)
+);
+CREATE TABLE curated_lists (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  source_id TEXT NOT NULL REFERENCES sources(id),
+  version TEXT NOT NULL,
+  pipeline_version TEXT NOT NULL
+);
+CREATE TABLE list_members (
+  list_id TEXT NOT NULL REFERENCES curated_lists(id),
+  lemma TEXT NOT NULL,
+  rank INTEGER NOT NULL CHECK (rank >= 1),
+  band INTEGER NOT NULL CHECK (band BETWEEN 1 AND 5),
+  part_of_speech TEXT,
+  source_id TEXT NOT NULL REFERENCES sources(id),
+  UNIQUE(list_id, lemma)
+);
+CREATE TABLE curation (
+  lexeme_id TEXT PRIMARY KEY REFERENCES lexemes(id),
+  grade TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  pipeline_version TEXT NOT NULL
+);
 CREATE INDEX forms_lexeme_id ON forms(lexeme_id);
 CREATE INDEX senses_lexeme_id ON senses(lexeme_id);
 CREATE INDEX senses_source_sense_key ON senses(source_sense_key);
 CREATE INDEX definitions_sense_id ON definitions(sense_id);
 CREATE INDEX examples_sense_id ON examples(sense_id);
+CREATE INDEX collection_members_collection_id_rank ON collection_members(collection_id, rank);
+CREATE INDEX list_members_list_id_rank ON list_members(list_id, rank);
 """
 
 
@@ -119,7 +164,17 @@ def write_jsonl(dataset: Dataset, target: Path) -> None:
         raise
 
 
-def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> None:
+def write_sqlite(
+    dataset: Dataset,
+    target: Path,
+    metadata: dict[str, str],
+    rankings: tuple[Ranking, ...] = (),
+    collections: tuple[Collection, ...] = (),
+    collection_members: tuple[CollectionMember, ...] = (),
+    curated_lists: tuple[CuratedList, ...] = (),
+    list_members: tuple[ListMember, ...] = (),
+    curation: tuple[Curation, ...] = (),
+) -> None:
     temporary, descriptor = _atomic_path(target)
     os.close(descriptor)
     try:
@@ -207,6 +262,67 @@ def write_sqlite(dataset: Dataset, target: Path, metadata: dict[str, str]) -> No
                             for item in sense.examples
                         ],
                     )
+            connection.executemany(
+                "INSERT INTO curated_lists VALUES (?, ?, ?, ?, ?)",
+                [
+                    (item.id, item.title, item.source_id, item.version, item.pipeline_version)
+                    for item in curated_lists
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO list_members VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        item.list_id,
+                        item.lemma,
+                        item.rank,
+                        item.band,
+                        item.part_of_speech,
+                        item.source_id,
+                    )
+                    for item in list_members
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO curation VALUES (?, ?, ?, ?)",
+                [
+                    (item.lexeme_id, item.grade, item.reason, item.pipeline_version)
+                    for item in curation
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO rankings VALUES (?, ?, ?, ?)",
+                [
+                    (ranking.lexeme_id, ranking.rank, ranking.zipf, ranking.source_id)
+                    for ranking in rankings
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO collections VALUES (?, ?, ?, ?, ?)",
+                [
+                    (
+                        collection.id,
+                        collection.title,
+                        collection.selection_basis,
+                        collection.version,
+                        collection.pipeline_version,
+                    )
+                    for collection in collections
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO collection_members VALUES (?, ?, ?, ?, ?)",
+                [
+                    (
+                        member.collection_id,
+                        member.lexeme_id,
+                        member.sense_id,
+                        member.rank,
+                        member.inclusion_reason,
+                    )
+                    for member in collection_members
+                ],
+            )
             connection.commit()
             connection.execute("VACUUM")
         finally:

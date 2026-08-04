@@ -1,4 +1,20 @@
 {
+  "collection_readiness": {
+    "curation": {
+      "clean": 31492,
+      "digit_containing": 288,
+      "digit_leading": 163,
+      "multiword": 52598,
+      "no_example": 49961,
+      "overlong": 3,
+      "pure_numeric": 173,
+      "satellite_paren": 914
+    },
+    "eligible_for_initial_pool": 32128,
+    "long_exclusions": 450,
+    "multiword_exclusions": 53028,
+    "numeric_exclusions": 173
+  },
   "coverage": {
     "lexemes_without_canonical_form": 0,
     "senses_missing_required_source_sense_key": 0,
@@ -34,6 +50,16 @@
       "checksum": "38b16326159f51853626b7d24a44c453fa88ab33f06fce5ec8fc5996d1c2be93",
       "id": "oewn-2025",
       "version": "2025"
+    },
+    {
+      "checksum": "7943098975f25c2a70e1151ee5a62083b14a5f86f6cc5703cc9526f716ceb408",
+      "id": "wordfreq-3.1.1",
+      "version": "3.1.1"
+    },
+    {
+      "checksum": "2098bab8955a120a9766c6282a51d7d578c6cb0a7d946600d2ffb73ba25a0b44",
+      "id": "ngsl-1.2",
+      "version": "1.2"
     }
   ]
 }

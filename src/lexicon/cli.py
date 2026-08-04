@@ -6,10 +6,24 @@ from pathlib import Path
 import typer
 
 from .archive import create_release_archive, verify_release_archive, write_checksum_file
+from .collections import (
+    build_starter_collection,
+    collection_member_digest,
+    load_definition,
+    write_collection_jsonl,
+    write_collection_report,
+)
 from .compile import write_jsonl, write_sqlite
+from .curation import curate
 from .export import export_legacy
+from .frequency import load_source as load_frequency_source
+from .frequency import rank_lemmas, write_rankings
 from .health import check_baseline, dataset_health, write_health_report
 from .manifest import write_attribution, write_manifest
+from .ngsl import acquire as acquire_ngsl_csv
+from .ngsl import coverage as ngsl_coverage
+from .ngsl import import_csv as import_ngsl_csv
+from .ngsl import load_lock as load_ngsl_lock
 from .normalize import normalize_dataset_with_report
 from .oewn import acquire as acquire_oewn_archive
 from .oewn import import_archive, load_lock, write_staging
@@ -38,6 +52,14 @@ def build(
     overrides_dir: Path | None = typer.Option(None, "--overrides", file_okay=False),
     import_report_path: Path | None = typer.Option(None, "--import-report", exists=True),
     baseline_path: Path | None = typer.Option(None, "--baseline", exists=True, dir_okay=False),
+    frequency_lock_path: Path = typer.Option(
+        Path("data/sources/frequency.lock.json"), "--frequency-lock", exists=True
+    ),
+    collections_dir: Path = typer.Option(Path("data/collections"), "--collections", exists=True),
+    ngsl_path: Path | None = typer.Option(None, "--ngsl", dir_okay=False),
+    ngsl_lock_path: Path = typer.Option(
+        Path("data/sources/ngsl.lock.json"), "--ngsl-lock", exists=True, dir_okay=False
+    ),
 ) -> None:
     """Compile curated staging data into canonical dataset artifacts."""
     try:
@@ -46,17 +68,49 @@ def build(
         dataset = apply_overrides(
             normalized.dataset, load_overrides(overrides_dir or input_dir.parent / "overrides")
         )
+        frequency_source = load_frequency_source(frequency_lock_path)
+        resolved_ngsl_path = ngsl_path or input_dir / "ngsl-1.2.csv"
+        if not resolved_ngsl_path.is_file():
+            resolved_ngsl_path = Path(".cache/raw/NGSL_12_stats.csv")
+        ngsl = import_ngsl_csv(resolved_ngsl_path, load_ngsl_lock(ngsl_lock_path))
+        source_ids = {source.id for source in dataset.sources}
+        if frequency_source.id in source_ids or ngsl.source.id in source_ids:
+            raise ValueError("frequency or NGSL source duplicates a dataset source")
+        dataset = dataset.model_copy(
+            update={"sources": (*dataset.sources, frequency_source, ngsl.source)}
+        )
         validate_dataset(dataset)
+        rankings = rank_lemmas(dataset, frequency_source.id)
+        curation = curate(dataset)
+        definition = load_definition(collections_dir / "en-general-starter.json", dataset)
+        collection, members, collection_report = build_starter_collection(
+            dataset, rankings, curation, ngsl.members, definition
+        )
+        collection_report["ngsl_coverage"] = ngsl_coverage(
+            dataset,
+            ngsl.members,
+            {item.lexeme_id for item in curation if item.grade != "excluded_junk"},
+        )
         health_report_path = output_dir / "health-report.json"
-        health_report = dataset_health(dataset, normalized)
+        health_report = dataset_health(dataset, normalized, curation)
         write_health_report(health_report, health_report_path)
         if baseline_path is not None:
             check_baseline(health_report, baseline_path)
         stem = f"{DATASET_NAME}-{DATASET_VERSION}"
         jsonl_path = output_dir / f"{stem}.jsonl"
+        collection_jsonl_path = output_dir / f"{collection.id}-{DATASET_VERSION}.jsonl"
         sqlite_path = output_dir / f"{stem}.sqlite"
         duplicate_report_path = output_dir / "duplicate-report.json"
         write_jsonl(dataset, jsonl_path)
+        write_collection_jsonl(
+            dataset,
+            collection,
+            members,
+            rankings,
+            curation,
+            ngsl.members,
+            collection_jsonl_path,
+        )
         write_sqlite(
             dataset,
             sqlite_path,
@@ -66,9 +120,20 @@ def build(
                 "schema_version": SCHEMA_VERSION,
                 "pipeline_version": PIPELINE_VERSION,
             },
+            rankings,
+            (collection,),
+            members,
+            (ngsl.curated_list,),
+            ngsl.members,
+            curation,
         )
         write_duplicate_report(normalized, duplicate_report_path)
+        collection_report_path = output_dir / "collection-report.json"
+        collection_report["member_sha256"] = collection_member_digest(members)
+        write_collection_report(collection_report, collection_report_path)
         artifacts = {
+            "collection_jsonl": collection_jsonl_path,
+            "collection_report": collection_report_path,
             "duplicate_report": duplicate_report_path,
             "health_report": health_report_path,
             "jsonl": jsonl_path,
@@ -90,6 +155,9 @@ def build(
             artifacts,
             output_dir / "manifest.json",
             import_report,
+            rankings=rankings,
+            collections=(collection,),
+            collection_members=members,
         )
         write_attribution(dataset, output_dir / "ATTRIBUTION.md")
     except Exception as error:
@@ -100,8 +168,104 @@ def build(
             raise typer.Exit(code=1) from error
         raise
     typer.echo(
-        f"Built {len(dataset.lexemes)} lexemes in {output_dir}; {len(normalized.exact_duplicate_lexeme_ids)} exact duplicate inputs reported"
+        f"Built {len(dataset.lexemes)} lexemes and {len(members)} collection members in {output_dir}; "
+        f"{len(normalized.exact_duplicate_lexeme_ids)} exact duplicate inputs reported"
     )
+
+
+@app.command("import-frequency")
+def import_frequency(
+    input_path: Path = typer.Option(..., "--input", exists=True, dir_okay=False),
+    output_path: Path = typer.Option(..., "--output", dir_okay=False),
+    lock_path: Path = typer.Option(
+        Path("data/sources/frequency.lock.json"), "--lock", exists=True, dir_okay=False
+    ),
+) -> None:
+    """Rank canonical JSONL lexemes with the pinned wordfreq source."""
+    from .model import Dataset, Language, Lexeme
+
+    try:
+        lexemes = tuple(
+            Lexeme.model_validate_json(line)
+            for line in input_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
+        source = load_frequency_source(lock_path)
+        dataset = Dataset(
+            language=Language(id="en", iso_639_1="en", name="English"),
+            sources=(source,),
+            lexemes=lexemes,
+        )
+        rankings = rank_lemmas(dataset, source.id)
+        write_rankings(rankings, source, output_path)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Imported {len(rankings)} frequency rankings to {output_path}")
+
+
+@app.command("acquire-ngsl")
+def acquire_ngsl(
+    cache_dir: Path = typer.Option(Path(".cache/raw"), "--cache", file_okay=False),
+    lock_path: Path = typer.Option(Path("data/sources/ngsl.lock.json"), "--lock", exists=True),
+) -> None:
+    """Download the checksum-locked NGSL 1.2 CSV into the local cache."""
+    try:
+        target = acquire_ngsl_csv(load_ngsl_lock(lock_path), cache_dir)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(target)
+
+
+@app.command("import-ngsl")
+def import_ngsl(
+    input_path: Path = typer.Option(..., "--input", exists=True, dir_okay=False),
+    lock_path: Path = typer.Option(Path("data/sources/ngsl.lock.json"), "--lock", exists=True),
+) -> None:
+    """Validate and summarize a checksum-locked NGSL 1.2 CSV."""
+    try:
+        result = import_ngsl_csv(input_path, load_ngsl_lock(lock_path))
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Imported {len(result.members)} NGSL core-list members")
+
+
+@app.command("build-collection")
+def build_collection(
+    input_dir: Path = typer.Option(..., "--input", exists=True, file_okay=False),
+    output_path: Path = typer.Option(..., "--output", dir_okay=False),
+    definition_path: Path = typer.Option(
+        Path("data/collections/en-general-starter.json"),
+        "--definition",
+        exists=True,
+        dir_okay=False,
+    ),
+    frequency_lock_path: Path = typer.Option(
+        Path("data/sources/frequency.lock.json"), "--frequency-lock", exists=True, dir_okay=False
+    ),
+) -> None:
+    """Build and report the initial deterministic starter collection from staging data."""
+    try:
+        sources, records = load_staging(input_dir)
+        dataset = normalize_dataset_with_report(sources, records).dataset
+        source = load_frequency_source(frequency_lock_path)
+        rankings = rank_lemmas(dataset, source.id)
+        curation = curate(dataset)
+        # Standalone reports intentionally use the same cache contract as build.
+        ngsl = import_ngsl_csv(
+            Path(".cache/raw/NGSL_12_stats.csv"),
+            load_ngsl_lock(Path("data/sources/ngsl.lock.json")),
+        )
+        _, _, report = build_starter_collection(
+            dataset, rankings, curation, ngsl.members, load_definition(definition_path, dataset)
+        )
+        write_collection_report(report, output_path)
+    except Exception as error:
+        _exit_with_pipeline_error(error)
+        raise
+    typer.echo(f"Built collection report at {output_path}")
 
 
 @app.command("acquire-oewn")

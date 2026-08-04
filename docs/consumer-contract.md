@@ -1,4 +1,4 @@
-# Vocab consumer contract — Lexicon v0.3
+# Vocab consumer contract — Lexicon v0.5
 
 The Vocab desktop application consumes a published lexicon bundle as read-only language knowledge.
 The bundle is independent from the desktop binary and may be updated through a controlled update
@@ -9,8 +9,8 @@ flow after verification.
 Vocab v0.2 consumers support:
 
 ```text
-schema_version:  0.2.0
-dataset_version: 0.3.x
+schema_version:  0.3.0
+dataset_version: 0.5.x
 ```
 
 Before importing or replacing a bundle, verify `release-manifest.json` and `manifest.json`
@@ -28,6 +28,8 @@ ATTRIBUTION.md
 duplicate-report.json
 health-report.json
 import-report.json
+collection-report.json
+en-general-starter-<version>.jsonl # filtered starter-collection interchange artifact
 vocab-compat-<version>.json       # temporary compatibility projection
 ```
 
@@ -41,8 +43,23 @@ Vocab should query a lexeme through its senses and select an appropriate definit
 application layer. It must retain the lexeme’s `source_id` and `source_sense_key` when displaying
 or auditing OEWN-derived content.
 
+`rankings` records wordfreq-derived lemma rank and Zipf score for each ranked lexeme.
+`collections` and `collection_members` expose editorial starter selections; their
+`selection_basis`, `pipeline_version`, and member `inclusion_reason` distinguish those choices
+from source facts.
+
+`curated_lists` and `list_members` expose the NGSL backbone, including its stable source rank and
+five coarse bands. `curation` records whether a lexeme is a clean graded candidate, excluded junk,
+or an explicit allowlist exception. Vocab must choose introduction order at runtime using its
+learner-state policy (band fit, rarity/difficulty fit, novelty, and available family support), not
+by treating a collection-member rank as a learning schedule.
+
 The JSONL artifact represents the same canonical records and is suitable for diagnostics or a
 future importer, but SQLite is the v0.2 runtime contract.
+
+`en-general-starter-<version>.jsonl` is the filtered learner-pool projection. Each line contains
+the canonical lexeme plus its collection member, NGSL, curation, and ranking facts. Its members
+are exactly the SQLite `collection_members` rows and are independently verified at release time.
 
 ## Vocab boundary
 

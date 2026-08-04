@@ -1,0 +1,7 @@
+{
+  "id": "en-general-starter",
+  "title": "English general starter",
+  "selection_basis": "NGSL 1.2 (CC BY-SA 4.0) curated learner list; graded clean single-word canonical lexemes with definition and example; wordfreq rarity gate zipf >= 2",
+  "version": "1",
+  "exclusions": []
+}

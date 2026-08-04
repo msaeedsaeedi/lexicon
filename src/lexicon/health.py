@@ -7,7 +7,7 @@ from typing import Any
 
 from .compile import write_text_atomic
 from .errors import PipelineError
-from .model import Dataset
+from .model import Curation, Dataset
 from .normalize import NormalizationResult
 
 
@@ -15,7 +15,11 @@ class QualityRegressionError(PipelineError):
     code = "quality.regression"
 
 
-def dataset_health(dataset: Dataset, normalized: NormalizationResult) -> dict[str, Any]:
+def dataset_health(
+    dataset: Dataset,
+    normalized: NormalizationResult,
+    curation: tuple[Curation, ...] = (),
+) -> dict[str, Any]:
     source_ids = {source.id for source in dataset.sources}
     required_source_sense_keys = {
         source.id for source in dataset.sources if source.requires_source_sense_key
@@ -24,6 +28,19 @@ def dataset_health(dataset: Dataset, normalized: NormalizationResult) -> dict[st
     senses = [sense for lexeme in dataset.lexemes for sense in lexeme.senses]
     definitions = [definition for sense in senses for definition in sense.definitions]
     examples = [example for sense in senses for example in sense.examples]
+    multiword = sum(
+        any(character.isspace() for character in lexeme.lemma) for lexeme in dataset.lexemes
+    )
+    numeric = sum(lexeme.lemma.isnumeric() for lexeme in dataset.lexemes)
+    long = sum(len(lexeme.lemma) > 30 for lexeme in dataset.lexemes)
+    eligible = sum(
+        not any(character.isspace() for character in lexeme.lemma)
+        and not lexeme.lemma.isnumeric()
+        and len(lexeme.lemma) <= 30
+        and any(sense.examples for sense in lexeme.senses)
+        and any(form.is_canonical for form in lexeme.forms)
+        for lexeme in dataset.lexemes
+    )
 
     return {
         "source": [
@@ -61,6 +78,13 @@ def dataset_health(dataset: Dataset, normalized: NormalizationResult) -> dict[st
         "duplicates": {
             "input_records": normalized.input_record_count,
             "exact_duplicate_input_records": len(normalized.exact_duplicate_lexeme_ids),
+        },
+        "collection_readiness": {
+            "eligible_for_initial_pool": eligible,
+            "multiword_exclusions": multiword,
+            "numeric_exclusions": numeric,
+            "long_exclusions": long,
+            "curation": dict(sorted(Counter(item.reason for item in curation).items())),
         },
     }
 

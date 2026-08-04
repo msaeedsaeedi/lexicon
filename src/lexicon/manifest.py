@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .compile import sha256, write_text_atomic
-from .model import Dataset
+from .model import Collection, CollectionMember, Dataset, Ranking
 from .version import DATASET_NAME, DATASET_VERSION, PIPELINE_VERSION, SCHEMA_VERSION
 
 
@@ -13,6 +13,10 @@ def write_manifest(
     artifacts: dict[str, Path],
     target: Path,
     import_report: dict[str, object] | None = None,
+    *,
+    rankings: tuple[Ranking, ...] = (),
+    collections: tuple[Collection, ...] = (),
+    collection_members: tuple[CollectionMember, ...] = (),
 ) -> None:
     counts = {
         "lexemes": len(dataset.lexemes),
@@ -31,6 +35,7 @@ def write_manifest(
         "language": dataset.language.model_dump(mode="json"),
         "record_counts": counts,
         "sources": [source.model_dump(mode="json") for source in dataset.sources],
+        "collections": [collection.model_dump(mode="json") for collection in collections],
         "artifacts": [
             {"name": name, "filename": path.name, "sha256": sha256(path)}
             for name, path in sorted(artifacts.items())
@@ -58,4 +63,12 @@ def write_attribution(dataset: Dataset, target: Path) -> None:
                 "",
             ]
         )
+        if source.id == "wordfreq-3.1.1":
+            lines.extend(
+                [
+                    "wordfreq data incorporates frequency sources including SUBTLEX and Google Books; "
+                    "consult the upstream wordfreq distribution for their notices.",
+                    "",
+                ]
+            )
     write_text_atomic(target, "\n".join(lines))
